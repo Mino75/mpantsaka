@@ -43,6 +43,7 @@ app.use((req, res, next) => {
 app.get("/:targetUrl(*)", async (req, res) => {
   try {
     const targetUrl = req.params.targetUrl;
+    console.log(`🔍 Received Target URL: ${targetUrl}`);
 
     if (!targetUrl) {
       console.warn("⚠️ No target URL provided.");
@@ -50,15 +51,15 @@ app.get("/:targetUrl(*)", async (req, res) => {
     }
 
     const parsedUrl = new URL(targetUrl);
-    const targetDomain = parsedUrl.hostname;
+    console.log(`🔍 Parsed Hostname: ${parsedUrl.hostname}`);
 
+    const targetDomain = parsedUrl.hostname;
     if (!ALLOWED_TARGETS.includes(targetDomain)) {
       console.warn(`❌ Blocked Target: ${targetDomain}`);
       return res.status(403).json({ error: "Forbidden: Target domain not allowed" });
     }
 
-    // Debug: Log allowed request
-    console.log(`✅ Proxying request to: ${targetUrl}`);
+    console.log(`✅ Forwarding request to: ${targetUrl}`);
 
     const fetch = (await import("node-fetch")).default;
     const response = await fetch(targetUrl);
@@ -74,6 +75,7 @@ app.get("/:targetUrl(*)", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 
 // Start the server
 app.listen(PORT, () => {

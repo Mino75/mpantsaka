@@ -1,58 +1,81 @@
 const express = require("express");
-const axios = require("axios");
-const fs = require("fs");
-const path = require("path");
+const cors = require("cors");
+const { URL } = require("url");
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Allowed callers (who can use the proxy)
+// Read allowed origins and targets from environment variables
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "").split(",");
-
-// Allowed target domains (where the proxy is allowed to forward requests)
 const ALLOWED_TARGETS = (process.env.ALLOWED_TARGETS || "").split(",");
 
-// Read README.md for the frontend
-const README_PATH = path.join(__dirname, "README.md");
-let readmeContent = fs.existsSync(README_PATH) ? fs.readFileSync(README_PATH, "utf-8") : "No README available";
+// Debugging: Print loaded environment variables
+console.log("🔍 ALLOWED_ORIGINS:", ALLOWED_ORIGINS);
+console.log("🔍 ALLOWED_TARGETS:", ALLOWED_TARGETS);
 
-// Serve the README as raw Markdown
-app.get("/", (req, res) => {
-  res.setHeader("Content-Type", "text/markdown");
-  res.send(readmeContent);
-});
-
-// Middleware to check allowed callers
+// CORS middleware to allow only specific frontends
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (!origin || !ALLOWED_ORIGINS.includes(origin)) {
+
+  if (!origin) {
+    console.warn("⚠️ No Origin header found, skipping CORS check.");
+    return next();
+  }
+
+  if (!ALLOWED_ORIGINS.includes(origin)) {
+    console.warn(`❌ Blocked Origin: ${origin}`);
     return res.status(403).json({ error: "Forbidden: Origin not allowed" });
   }
+
+  res.header("Access-Control-Allow-Origin", origin);
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Credentials", "true");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
   next();
 });
 
 // Proxy request handler
-app.get("/*", async (req, res) => {
+app.get("/:targetUrl(*)", async (req, res) => {
   try {
-    const targetURL = req.url.substring(1); // Remove leading "/"
-    const targetDomain = new URL(targetURL).hostname;
+    const targetUrl = req.params.targetUrl;
 
-    // Check if target domain is allowed
+    if (!targetUrl) {
+      console.warn("⚠️ No target URL provided.");
+      return res.status(400).json({ error: "Bad Request: No target URL provided" });
+    }
+
+    const parsedUrl = new URL(targetUrl);
+    const targetDomain = parsedUrl.hostname;
+
     if (!ALLOWED_TARGETS.includes(targetDomain)) {
+      console.warn(`❌ Blocked Target: ${targetDomain}`);
       return res.status(403).json({ error: "Forbidden: Target domain not allowed" });
     }
 
-    console.log(`Proxying request to: ${targetURL}`);
+    // Debug: Log allowed request
+    console.log(`✅ Proxying request to: ${targetUrl}`);
 
-    // Fetch target resource
-    const response = await axios.get(targetURL, { responseType: "stream" });
-    res.set("Access-Control-Allow-Origin", "*");
-    response.data.pipe(res);
+    const fetch = (await import("node-fetch")).default;
+    const response = await fetch(targetUrl);
+
+    response.headers.forEach((value, name) => {
+      res.setHeader(name, value);
+    });
+
+    res.status(response.status);
+    response.body.pipe(res);
   } catch (error) {
-    console.error("Error fetching target:", error.message);
-    res.status(500).json({ error: "Error fetching target" });
+    console.error("🚨 Proxy Error:", error.message);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-// Start server
-app.listen(PORT, () => console.log(`Mpantsaka Proxy running on port ${PORT}`));
+// Start the server
+app.listen(PORT, () => {
+  console.log(`🚀 Mpantsaka Proxy running on port ${PORT}`);
+});

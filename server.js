@@ -26,7 +26,8 @@ app.use((req, res, next) => {
     return res.status(403).json({ error: "Forbidden: Origin not allowed" });
   }
 
-  res.header("Access-Control-Allow-Origin", origin);
+  // Force CORS Headers
+  res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization");
   res.header("Access-Control-Allow-Credentials", "true");
@@ -62,6 +63,11 @@ app.get("/:targetUrl(*)", async (req, res) => {
 
     // Use native fetch (Node.js 18+)
     const response = await fetch(targetUrl);
+
+    // Force CORS Headers on the proxied response
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization");
 
     // Copy headers from target response
     response.headers.forEach((value, name) => {

@@ -29,16 +29,22 @@ HTTP/1.1 403 Forbidden: Origin not allowed
 
 ---
 
-### ✅ 2. Test a Valid Proxy Request
+### ✅ 2. Test a Valid Proxy Request via POST
 To check if `mpantsaka` correctly forwards requests to an **allowed target**, run:
 ```bash
-curl -I "BASE_URL/https://example.com/some-resource"
+curl -X POST "BASE_URL/proxy" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com/some-resource"}'
 ```
-**Expected response:**
-```
-HTTP/1.1 200 OK
-Access-Control-Allow-Origin: YOUR_ALLOWED_ORIGIN
-...
+**Expected response:**  
+The target website's content, with proper CORS headers.
+
+If you want to save the response to a file, use:
+```bash
+curl -X POST "BASE_URL/proxy" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com/some-resource"}' \
+  -o response.html
 ```
 
 ---
@@ -46,7 +52,9 @@ Access-Control-Allow-Origin: YOUR_ALLOWED_ORIGIN
 ### ❌ 3. Test a Blocked Target
 Try requesting a **blocked domain**:
 ```bash
-curl -I "BASE_URL/https://blocked-site.com/"
+curl -X POST "BASE_URL/proxy" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://blocked-site.com/"}'
 ```
 **Expected response:**
 ```
@@ -60,7 +68,13 @@ This confirms that `ALLOWED_TARGETS` is working correctly.
 
 ### ✅ Basic Fetch Example
 ```js
-fetch("BASE_URL/https://example.com/some-resource")
+fetch("BASE_URL/proxy", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({ url: "https://example.com/some-resource" })
+})
   .then(response => response.text())
   .then(data => console.log("Proxy Response:", data))
   .catch(error => console.error("Proxy Error:", error));
@@ -72,12 +86,13 @@ This will work **only** if the request is made from an **allowed origin (`ALLOWE
 ### ✅ Fetch with Headers
 If the target API requires headers (e.g., `Authorization` or `Content-Type`):
 ```js
-fetch("BASE_URL/https://example.com/api/data", {
-  method: "GET",
+fetch("BASE_URL/proxy", {
+  method: "POST",
   headers: {
-    "Authorization": "Bearer YOUR_ACCESS_TOKEN",
-    "Content-Type": "application/json"
-  }
+    "Content-Type": "application/json",
+    "Authorization": "Bearer YOUR_ACCESS_TOKEN"
+  },
+  body: JSON.stringify({ url: "https://example.com/api/data" })
 })
   .then(response => response.json())
   .then(data => console.log("Data:", data))
@@ -116,4 +131,5 @@ This ensures that **only specified domains** can be accessed.
 
 ---
 
-🚀 **Now `mpantsaka` is fully documented & ready to use!** 🎉  
+🚀 **Now `mpantsaka` is fully documented & ready to use!** 🎉
+````markdown

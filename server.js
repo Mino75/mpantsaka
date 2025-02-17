@@ -12,7 +12,7 @@ const ALLOWED_TARGETS = (process.env.ALLOWED_TARGETS || "").split(",");
 console.log("🔍 ALLOWED_ORIGINS:", ALLOWED_ORIGINS);
 console.log("🔍 ALLOWED_TARGETS:", ALLOWED_TARGETS);
 
-// Manual CORS middleware to allow only specific frontends
+// Manual CORS middleware
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
@@ -26,13 +26,11 @@ app.use((req, res, next) => {
     return res.status(403).json({ error: "Forbidden: Origin not allowed" });
   }
 
-  // Set the appropriate CORS headers
   res.header("Access-Control-Allow-Origin", origin);
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization");
   res.header("Access-Control-Allow-Credentials", "true");
 
-  // Handle preflight requests
   if (req.method === "OPTIONS") {
     return res.sendStatus(204);
   }
@@ -51,11 +49,9 @@ app.get("/:targetUrl(*)", async (req, res) => {
       return res.status(400).json({ error: "Bad Request: No target URL provided" });
     }
 
-    // Parse URL to extract domain
     const parsedUrl = new URL(targetUrl);
     console.log(`🔍 Parsed Hostname: ${parsedUrl.hostname}`);
 
-    // Check if domain is allowed
     const targetDomain = parsedUrl.hostname;
     if (!ALLOWED_TARGETS.includes(targetDomain)) {
       console.warn(`❌ Blocked Target: ${targetDomain}`);
@@ -72,9 +68,20 @@ app.get("/:targetUrl(*)", async (req, res) => {
       res.setHeader(name, value);
     });
 
-    // Set status code and pipe the response body
+    // Stream the response correctly
+    const reader = response.body.getReader();
     res.status(response.status);
-    response.body.pipe(res);
+    
+    async function streamData() {
+      let { done, value } = await reader.read();
+      while (!done) {
+        res.write(value);
+        ({ done, value } = await reader.read());
+      }
+      res.end();
+    }
+
+    await streamData();
   } catch (error) {
     console.error("🚨 Proxy Error:", error.message);
     res.status(500).json({ error: "Internal Server Error" });

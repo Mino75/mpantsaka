@@ -129,7 +129,5 @@ This ensures that **only specified domains** can be accessed.
 - **Only whitelisted domains (`ALLOWED_TARGETS`) can be fetched** through the proxy.
 - If you encounter **CORS errors**, ensure your frontend is hosted on an **allowed origin**.
 
----
 
-🚀 **Now `mpantsaka` is fully documented & ready to use!** 🎉
-````markdown
+
